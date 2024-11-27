@@ -1,7 +1,37 @@
 const mongoose = require('mongoose');
-const Schema = mongoose.Schema;
+const CommentSchema = require('./schemas/CommentSchema');
 
-const itemSchema = new Schema({
+const imageSchema = new mongoose.Schema({
+    url: {
+        type: String,
+        required: true
+    },
+    alt: String,
+    order: {
+        type: Number,
+        default: 0
+    }
+});
+
+const statusHistorySchema = new mongoose.Schema({
+    status: {
+        type: String,
+        required: true,
+        enum: ['FOUND', 'LOST', 'CLAIMED', 'REJECTED', 'IN_STORAGE', 'IN_TRANSIT', 'PENDING_VERIFICATION', 'VERIFIED']
+    },
+    timestamp: {
+        type: Date,
+        default: Date.now
+    },
+    comment: String,
+    user: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User',
+        required: true
+    }
+});
+
+const itemSchema = new mongoose.Schema({
     serialNumber: {
         type: String,
         required: true,
@@ -11,7 +41,8 @@ const itemSchema = new Schema({
     name: {
         type: String,
         required: true,
-        trim: true
+        trim: true,
+        index: true
     },
     description: {
         type: String,
@@ -34,7 +65,8 @@ const itemSchema = new Schema({
             'GPS',
             'Cyclomoteurs',
             'Autres Appareils'
-        ]
+        ],
+        index: true
     },
     value: {
         amount: {
@@ -61,33 +93,53 @@ const itemSchema = new Schema({
         type: String,
         required: true
     },
-    images: [{
-        url: {
-            type: String,
-            required: true
-        },
-        caption: String,
-        uploadDate: {
-            type: Date,
-            default: Date.now
-        }
-    }],
+    images: [imageSchema],
     purchaseDate: {
         type: Date
     },
+    location: {
+        type: {
+            type: String,
+            enum: ['Point'],
+            default: 'Point'
+        },
+        coordinates: {
+            type: [Number],
+            required: true
+        },
+        address: {
+            type: String,
+            required: true
+        },
+        city: {
+            type: String,
+            required: true
+        },
+        postalCode: {
+            type: String,
+            required: true
+        }
+    },
+    tags: [{
+        type: String,
+        lowercase: true,
+        trim: true
+    }],
     status: {
         type: String,
-        enum: ['active', 'stolen', 'lost', 'found', 'sold', 'damaged'],
-        default: 'active'
+        enum: ['FOUND', 'LOST', 'CLAIMED', 'REJECTED', 'IN_STORAGE', 'IN_TRANSIT', 'PENDING_VERIFICATION', 'VERIFIED'],
+        default: 'PENDING_VERIFICATION',
+        index: true
     },
+    statusHistory: [statusHistorySchema],
     owner: {
-        type: Schema.Types.ObjectId,
+        type: mongoose.Schema.Types.ObjectId,
         ref: 'User',
         required: true
     },
     ownerHistory: [{
         owner: {
-            type: Schema.Types.ObjectId,
+            type: mongoose.Schema.Types.ObjectId,
             ref: 'User'
         },
         transferDate: {
@@ -99,20 +151,15 @@ const itemSchema = new Schema({
             enum: ['purchase', 'gift', 'inheritance', 'other']
         }
     }],
-    location: {
-        type: {
-            type: String,
-            enum: ['Point'],
-            default: 'Point'
-        },
-        coordinates: {
-            type: [Number],
-            default: [0, 0]
-        }
+    comments: [CommentSchema],
+    lastUpdated: {
+        type: Date,
+        default: Date.now
     },
     createdAt: {
         type: Date,
-        default: Date.now
+        default: Date.now,
+        index: true
     },
     updatedAt: {
         type: Date,
@@ -131,11 +178,50 @@ itemSchema.index({ category: 1 });
 // Index géospatial pour les recherches de proximité
 itemSchema.index({ location: '2dsphere' });
 
+// Index composite pour les recherches courantes
+itemSchema.index({ status: 1, category: 1, createdAt: -1 });
+itemSchema.index({ tags: 1, status: 1 });
+
 // Middleware pour mettre à jour updatedAt
 itemSchema.pre('save', function(next) {
     this.updatedAt = new Date();
     next();
 });
+
+// Middleware pour trier les images par ordre
+itemSchema.pre('save', function(next) {
+    if (this.images && this.images.length > 0) {
+        this.images.sort((a, b) => a.order - b.order);
+    }
+    next();
+});
+
+// Méthode pour ajouter une entrée dans l'historique des statuts
+itemSchema.methods.addStatusHistory = function(status, user, comment = '') {
+    this.status = status;
+    this.statusHistory.push({
+        status,
+        user,
+        comment,
+        timestamp: new Date()
+    });
+};
+
+// Méthode pour obtenir une version publique de l'objet
+itemSchema.methods.toPublicJSON = function(currentUser) {
+    const obj = this.toObject();
+    
+    // Suppression des informations sensibles
+    delete obj.__v;
+    
+    // Ajout d'informations supplémentaires pour l'utilisateur connecté
+    if (currentUser) {
+        obj.isOwner = currentUser._id.equals(this.owner);
+        obj.canEdit = obj.isOwner || currentUser.roles.includes('admin');
+    }
+
+    return obj;
+};
 
 // Méthode pour vérifier si un utilisateur a accès à une information
 itemSchema.methods.canAccessInfo = function(user, infoType) {
@@ -171,4 +257,55 @@ itemSchema.methods.toPublicJSON = function(user) {
     return obj;
 };
 
-module.exports = mongoose.model('Item', itemSchema);
+// Méthode pour filtrer les informations sensibles
+itemSchema.methods.filterSensitiveInfo = function(userRole, userId) {
+    const item = this.toObject();
+
+    // Administrateurs : accès complet
+    if (userRole === 'admin') return item;
+
+    // Propriétaire : accès à ses propres informations
+    const isOwner = userId && userId.toString() === item.owner.toString();
+    if (isOwner) return item;
+
+    // Autres utilisateurs : filtrage selon les paramètres de confidentialité
+    if (item.privacySettings.ownerInfo !== 'public') {
+        delete item.owner;
+    }
+
+    if (item.privacySettings.documents !== 'public') {
+        item.documents = item.documents.filter(doc => doc.isPublic);
+    }
+
+    // Filtrer les commentaires selon la visibilité
+    item.comments = item.comments.filter(comment => comment.visibility === 'public');
+
+    return item;
+};
+
+// Méthode pour ajouter un commentaire
+itemSchema.methods.addComment = function(comment) {
+    this.comments.push(comment);
+    this.lastUpdated = new Date();
+    return this.save();
+};
+
+// Méthode pour mettre à jour le statut
+itemSchema.methods.updateStatus = function(status, userId, comment) {
+    this.status = status;
+    if (comment) {
+        this.comments.push({
+            content: comment,
+            type: 'status_update',
+            status: status,
+            author: userId,
+            visibility: 'public'
+        });
+    }
+    this.lastUpdated = new Date();
+    return this.save();
+};
+
+const Item = mongoose.model('Item', itemSchema);
+
+module.exports = Item;

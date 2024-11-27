@@ -6,6 +6,7 @@ const userRoutes = require('./routes/user');
 const itemRoutes = require('./routes/item');
 const authRoutes = require('./routes/auth');
 const geocodeRoutes = require('./routes/geocode');
+const { router: adminAuthRouter } = require('./routes/adminAuth');
 
 const app = express();
 
@@ -25,6 +26,7 @@ app.use('/api/users', userRoutes);
 app.use('/api/items', itemRoutes);
 app.use('/api/auth', authRoutes);
 app.use('/api/geocode', geocodeRoutes);
+app.use('/api/admin', adminAuthRouter);
 
 // Route de test
 app.get('/api/test', (req, res) => {
