@@ -1,0 +1,26 @@
+{
+  "map": {
+    "title": "Carte des objets",
+    "error": "Erreur lors du chargement de la carte",
+    "markerInfo": "Détails de l'objet",
+    "filters": {
+      "lost": "Objets perdus",
+      "found": "Objets trouvés",
+      "stolen": "Objets volés"
+    },
+    "status": {
+      "lost": "Perdu",
+      "found": "Trouvé",
+      "stolen": "Volé"
+    },
+    "viewDetails": "Voir les détails"
+  },
+  "chat": {
+    "conversations": "Conversations",
+    "typemessage": "Écrivez votre message...",
+    "select_conversation": "Sélectionnez une conversation",
+    "start_chat": "Démarrer une conversation",
+    "send": "Envoyer",
+    "attach": "Joindre un fichier"
+  }
+}

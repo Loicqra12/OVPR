@@ -1,0 +1,69 @@
+{
+    "app": {
+        "name": "OVPR",
+        "title": "Registro Personal de Verificación de Objetos"
+    },
+    "nav": {
+        "home": "Inicio",
+        "dashboard": "Panel de Control",
+        "items": "Mis Objetos",
+        "notifications": "Notificaciones",
+        "profile": "Perfil",
+        "admin": "Administración",
+        "logout": "Cerrar Sesión"
+    },
+    "items": {
+        "add": "Añadir Objeto",
+        "edit": "Editar Objeto",
+        "delete": "Eliminar",
+        "status": {
+            "active": "Activo",
+            "lost": "Perdido",
+            "found": "Encontrado",
+            "stolen": "Robado"
+        },
+        "fields": {
+            "name": "Nombre",
+            "description": "Descripción",
+            "serialNumber": "Número de Serie",
+            "purchaseDate": "Fecha de Compra",
+            "value": "Valor",
+            "category": "Categoría",
+            "status": "Estado"
+        }
+    },
+    "notifications": {
+        "title": "Notificaciones",
+        "markAllRead": "Marcar Todo como Leído",
+        "noNotifications": "Sin notificaciones",
+        "types": {
+            "info": "Información",
+            "warning": "Advertencia",
+            "alert": "Alerta"
+        }
+    },
+    "admin": {
+        "users": "Gestión de Usuarios",
+        "reports": "Gestión de Reportes",
+        "authority": "Interfaz de Autoridades",
+        "statistics": "Estadísticas",
+        "roles": {
+            "admin": "Administrador",
+            "moderator": "Moderador",
+            "user": "Usuario",
+            "authority": "Autoridad"
+        }
+    },
+    "common": {
+        "save": "Guardar",
+        "cancel": "Cancelar",
+        "delete": "Eliminar",
+        "edit": "Editar",
+        "search": "Buscar",
+        "loading": "Cargando...",
+        "error": "Ha ocurrido un error",
+        "success": "Operación exitosa",
+        "confirm": "Confirmar",
+        "currency": "€"
+    }
+}
